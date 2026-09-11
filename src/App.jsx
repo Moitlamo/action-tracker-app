@@ -11,6 +11,7 @@ export default function App() {
   const [filter, setFilter] = useState('my')
   const [loading, setLoading] = useState(false)
   const [showForm, setShowForm] = useState(false)
+  const [editingAction, setEditingAction] = useState(null)
   
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
