@@ -2,13 +2,16 @@ import React, { useState, useEffect } from 'react'
 import { supabase } from './supabaseClient'
 import ActionCard from './components/ActionCard'
 import ActionForm from './components/ActionForm'
-import { LogIn, LogOut, Loader2, PlusCircle, ShieldAlert } from 'lucide-react'
+import DashboardView from './components/DashboardView'
+import { LogIn, LogOut, Loader2, PlusCircle, ShieldAlert, LayoutList, BarChart2 } from 'lucide-react'
 
 export default function App() {
   const [session, setSession] = useState(null)
   const [actions, setActions] = useState([])
+  const [users, setUsers] = useState([])
   const [userRole, setUserRole] = useState('field_user')
   const [filter, setFilter] = useState('my')
+  const [viewMode, setViewMode] = useState('tasks') // 'tasks' or 'dashboard'
   const [loading, setLoading] = useState(false)
   const [showForm, setShowForm] = useState(false)
   const [editingAction, setEditingAction] = useState(null)
@@ -19,31 +22,36 @@ export default function App() {
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session)
-      if (session) fetchRoleAndActions(session.user.id)
+      if (session) fetchAppData(session.user.id)
     })
 
     supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session)
       if (session) {
-        fetchRoleAndActions(session.user.id)
+        fetchAppData(session.user.id)
       } else {
         setActions([])
+        setUsers([])
         setUserRole('field_user')
       }
     })
   }, [])
 
-  async function fetchRoleAndActions(userId) {
+  async function fetchAppData(userId) {
     setLoading(true)
     const { data: profile } = await supabase.from('profiles').select('role').eq('id', userId).single()
     if (profile) setUserRole(profile.role)
 
-    const { data } = await supabase
+    const { data: actionData } = await supabase
       .from('actions')
       .select('*, profiles:assigned_to(full_name)')
       .order('delivery_date', { ascending: true })
     
-    if (data) setActions(data)
+    if (actionData) setActions(actionData)
+
+    const { data: userData } = await supabase.from('profiles').select('id, full_name')
+    if (userData) setUsers(userData)
+
     setLoading(false)
   }
 
@@ -100,7 +108,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-50 pb-20">
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-10 px-4 py-3 flex items-center justify-between">
+      <header className="bg-white border-b border-slate-200 sticky top-0 z-10 px-4 py-3 flex items-center justify-between print:hidden">
         <h1 className="font-bold text-lg text-slate-800 truncate">Tracker Dashboard</h1>
         <button onClick={() => supabase.auth.signOut()} className="text-slate-500 hover:text-slate-800">
           <LogOut className="w-5 h-5" />
@@ -109,48 +117,69 @@ export default function App() {
 
       <main className="max-w-xl mx-auto p-4">
         {userRole === 'admin' && (
-          <div className="mb-6 flex gap-2">
-            <button onClick={() => { setEditingAction(null); setShowForm(true); }} className="flex-1 bg-slate-900 text-white py-2 px-4 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 hover:bg-slate-800">
-              <PlusCircle className="w-4 h-4" /> New Action
-            </button>
-            <button className="flex-1 bg-indigo-600 text-white py-2 px-4 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 hover:bg-indigo-700">
-              <ShieldAlert className="w-4 h-4" /> Users & Roles
-            </button>
+          <div className="mb-4 space-y-2 print:hidden">
+            <div className="flex gap-2">
+              <button onClick={() => { setEditingAction(null); setShowForm(true); }} className="flex-1 bg-slate-900 text-white py-2 px-3 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 hover:bg-slate-800">
+                <PlusCircle className="w-4 h-4" /> New Action
+              </button>
+            </div>
+            
+            {/* View Switcher Tabs (Tasks vs Supervisor Report) */}
+            <div className="flex gap-1 bg-slate-200 p-1 rounded-lg">
+              <button
+                onClick={() => setViewMode('tasks')}
+                className={`flex-1 py-1.5 text-xs font-semibold rounded-md flex items-center justify-center gap-1.5 transition-colors ${viewMode === 'tasks' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:bg-slate-300'}`}
+              >
+                <LayoutList className="w-3.5 h-3.5" /> Tasks Board
+              </button>
+              <button
+                onClick={() => setViewMode('dashboard')}
+                className={`flex-1 py-1.5 text-xs font-semibold rounded-md flex items-center justify-center gap-1.5 transition-colors ${viewMode === 'dashboard' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:bg-slate-300'}`}
+              >
+                <BarChart2 className="w-3.5 h-3.5" /> Supervisor Reports
+              </button>
+            </div>
           </div>
         )}
 
-        <div className="flex gap-2 bg-slate-200 p-1 rounded-lg mb-4">
-          <button
-            onClick={() => setFilter('my')}
-            className={`flex-1 py-1.5 text-sm font-semibold rounded-md transition-colors ${filter === 'my' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:bg-slate-300'}`}
-          >
-            My Field Tasks
-          </button>
-          <button
-            onClick={() => setFilter('all')}
-            className={`flex-1 py-1.5 text-sm font-semibold rounded-md transition-colors ${filter === 'all' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:bg-slate-300'}`}
-          >
-            All Organization Tasks
-          </button>
-        </div>
-
-        {loading ? (
-          <div className="flex justify-center mt-10"><Loader2 className="w-6 h-6 animate-spin text-slate-400" /></div>
-        ) : displayedActions.length === 0 ? (
-          <p className="text-center text-sm text-slate-500 mt-10">No actions found in this category.</p>
+        {viewMode === 'dashboard' && userRole === 'admin' ? (
+          <DashboardView actions={actions} users={users} />
         ) : (
-          displayedActions.map(action => (
-            <ActionCard
-              key={action.id}
-              action={action}
-              onStatusChange={handleStatusChange}
-              isEditable={userRole === 'admin' || action.assigned_to === session.user.id}
-              onEdit={(actionToEdit) => {
-                setEditingAction(actionToEdit);
-                setShowForm(true);
-              }}
-            />
-          ))
+          <>
+            <div className="flex gap-2 bg-slate-200 p-1 rounded-lg mb-4 print:hidden">
+              <button
+                onClick={() => setFilter('my')}
+                className={`flex-1 py-1.5 text-sm font-semibold rounded-md transition-colors ${filter === 'my' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:bg-slate-300'}`}
+              >
+                My Field Tasks
+              </button>
+              <button
+                onClick={() => setFilter('all')}
+                className={`flex-1 py-1.5 text-sm font-semibold rounded-md transition-colors ${filter === 'all' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:bg-slate-300'}`}
+              >
+                All Organization Tasks
+              </button>
+            </div>
+
+            {loading ? (
+              <div className="flex justify-center mt-10"><Loader2 className="w-6 h-6 animate-spin text-slate-400" /></div>
+            ) : displayedActions.length === 0 ? (
+              <p className="text-center text-sm text-slate-500 mt-10">No actions found in this category.</p>
+            ) : (
+              displayedActions.map(action => (
+                <ActionCard
+                  key={action.id}
+                  action={action}
+                  onStatusChange={handleStatusChange}
+                  isEditable={userRole === 'admin' || action.assigned_to === session.user.id}
+                  onEdit={(actionToEdit) => {
+                    setEditingAction(actionToEdit);
+                    setShowForm(true);
+                  }}
+                />
+              ))
+            )}
+          </>
         )}
       </main>
 
@@ -161,7 +190,7 @@ export default function App() {
             setShowForm(false);
             setEditingAction(null);
           }} 
-          onSave={() => fetchRoleAndActions(session.user.id)} 
+          onSave={() => fetchAppData(session.user.id)} 
         />
       )}
     </div>
