@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { supabase } from './supabaseClient'
 import ActionCard from './components/ActionCard'
+import ActionForm from './components/ActionForm'
 import { LogIn, LogOut, Loader2, PlusCircle, ShieldAlert } from 'lucide-react'
 
 export default function App() {
@@ -9,8 +10,8 @@ export default function App() {
   const [userRole, setUserRole] = useState('field_user')
   const [filter, setFilter] = useState('my')
   const [loading, setLoading] = useState(false)
+  const [showForm, setShowForm] = useState(false)
   
-  // Auth state
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
 
@@ -33,11 +34,9 @@ export default function App() {
 
   async function fetchRoleAndActions(userId) {
     setLoading(true)
-    // Get Role
     const { data: profile } = await supabase.from('profiles').select('role').eq('id', userId).single()
     if (profile) setUserRole(profile.role)
 
-    // Get Actions
     const { data } = await supabase
       .from('actions')
       .select('*, profiles:assigned_to(full_name)')
@@ -110,10 +109,10 @@ export default function App() {
       <main className="max-w-xl mx-auto p-4">
         {userRole === 'admin' && (
           <div className="mb-6 flex gap-2">
-            <button className="flex-1 bg-slate-900 text-white py-2 px-4 rounded-lg text-sm font-semibold flex items-center justify-center gap-2">
+            <button onClick={() => setShowForm(true)} className="flex-1 bg-slate-900 text-white py-2 px-4 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 hover:bg-slate-800">
               <PlusCircle className="w-4 h-4" /> New Action
             </button>
-            <button className="flex-1 bg-indigo-600 text-white py-2 px-4 rounded-lg text-sm font-semibold flex items-center justify-center gap-2">
+            <button className="flex-1 bg-indigo-600 text-white py-2 px-4 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 hover:bg-indigo-700">
               <ShieldAlert className="w-4 h-4" /> Users & Roles
             </button>
           </div>
@@ -149,6 +148,13 @@ export default function App() {
           ))
         )}
       </main>
+
+      {showForm && (
+        <ActionForm 
+          onClose={() => setShowForm(false)} 
+          onSave={() => fetchRoleAndActions(session.user.id)} 
+        />
+      )}
     </div>
   )
 }
