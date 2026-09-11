@@ -8,7 +8,7 @@ export default function App() {
   const [actions, setActions] = useState([])
   const [userRole, setUserRole] = useState('field_user')
   const [filter, setFilter] = useState('my')
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
   
   // Auth state
   const [email, setEmail] = useState('')
