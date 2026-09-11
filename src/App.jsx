@@ -110,7 +110,7 @@ export default function App() {
       <main className="max-w-xl mx-auto p-4">
         {userRole === 'admin' && (
           <div className="mb-6 flex gap-2">
-            <button onClick={() => setShowForm(true)} className="flex-1 bg-slate-900 text-white py-2 px-4 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 hover:bg-slate-800">
+            <button onClick={() => { setEditingAction(null); setShowForm(true); }} className="flex-1 bg-slate-900 text-white py-2 px-4 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 hover:bg-slate-800">
               <PlusCircle className="w-4 h-4" /> New Action
             </button>
             <button className="flex-1 bg-indigo-600 text-white py-2 px-4 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 hover:bg-indigo-700">
@@ -145,6 +145,10 @@ export default function App() {
               action={action}
               onStatusChange={handleStatusChange}
               isEditable={userRole === 'admin' || action.assigned_to === session.user.id}
+              onEdit={(actionToEdit) => {
+                setEditingAction(actionToEdit);
+                setShowForm(true);
+              }}
             />
           ))
         )}
@@ -152,7 +156,11 @@ export default function App() {
 
       {showForm && (
         <ActionForm 
-          onClose={() => setShowForm(false)} 
+          initialData={editingAction}
+          onClose={() => {
+            setShowForm(false);
+            setEditingAction(null);
+          }} 
           onSave={() => fetchRoleAndActions(session.user.id)} 
         />
       )}
