@@ -2,13 +2,13 @@ import React, { useState, useEffect } from 'react'
 import { supabase } from '../supabaseClient'
 import { X } from 'lucide-react'
 
-export default function ActionForm({ onClose, onSave }) {
-  const [description, setDescription] = useState('')
-  const [category, setCategory] = useState('')
-  const [priority, setPriority] = useState('Medium')
-  const [deliveryDate, setDeliveryDate] = useState('')
-  const [assignedTo, setAssignedTo] = useState('')
-  const [notes, setNotes] = useState('')
+export default function ActionForm({ onClose, onSave, initialData }) {
+  const [description, setDescription] = useState(initialData?.description || '')
+  const [category, setCategory] = useState(initialData?.category || '')
+  const [priority, setPriority] = useState(initialData?.priority || 'Medium')
+  const [deliveryDate, setDeliveryDate] = useState(initialData?.delivery_date || '')
+  const [assignedTo, setAssignedTo] = useState(initialData?.assigned_to || '')
+  const [notes, setNotes] = useState(initialData?.notes || '')
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(false)
 
@@ -23,17 +23,28 @@ export default function ActionForm({ onClose, onSave }) {
   async function handleSubmit(e) {
     e.preventDefault()
     setLoading(true)
-    const newAction = {
+    
+    const actionData = {
       description,
       category,
       priority,
       delivery_date: deliveryDate || null,
       assigned_to: assignedTo || null,
       notes,
-      status: 'Outstanding'
     }
 
-    const { error } = await supabase.from('actions').insert([newAction])
+    let error;
+    if (initialData?.id) {
+      // Update existing record
+      const { error: updateError } = await supabase.from('actions').update(actionData).eq('id', initialData.id)
+      error = updateError
+    } else {
+      // Insert new record
+      actionData.status = 'Outstanding'
+      const { error: insertError } = await supabase.from('actions').insert([actionData])
+      error = insertError
+    }
+    
     setLoading(false)
     
     if (error) {
@@ -48,7 +59,9 @@ export default function ActionForm({ onClose, onSave }) {
     <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-xl shadow-lg w-full max-w-md max-h-[90vh] overflow-y-auto p-5">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-lg font-bold text-slate-800">New Action Request</h2>
+          <h2 className="text-lg font-bold text-slate-800">
+            {initialData ? 'Edit Action Request' : 'New Action Request'}
+          </h2>
           <button onClick={onClose} className="text-slate-500 hover:text-slate-700">
             <X className="w-5 h-5" />
           </button>
@@ -97,7 +110,7 @@ export default function ActionForm({ onClose, onSave }) {
           </div>
 
           <button type="submit" disabled={loading} className="w-full bg-slate-900 text-white py-2.5 rounded-lg text-sm font-semibold hover:bg-slate-800 mt-2">
-            {loading ? 'Saving...' : 'Save Action'}
+            {loading ? 'Saving...' : (initialData ? 'Update Action' : 'Save Action')}
           </button>
         </form>
       </div>
